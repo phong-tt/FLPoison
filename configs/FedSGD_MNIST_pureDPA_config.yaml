@@ -1,0 +1,159 @@
+# Derived from configs/FedSGD_MNIST_config.yaml
+# This config keeps ONLY:
+# - NoAttack
+# - Pure data poisoning attacks (data_poisoning only): BadNets, BadNets_image, LabelFlipping, DBA
+seed: 4 # seed for reproducibility
+
+# basic configuration
+epochs: 300 # global epochs
+algorithm: FedSGD # algorithm, FedSGD, FedAvg, FedOpt
+optimizer: SGD # optimizer for training
+momentum: 0.9
+weight_decay: 5.0e-4
+# lr_scheduler: MultiStepLR # learning rate scheduler
+# milestones: [0.6, 0.8] # milestones for learning rate scheduler
+num_clients: 50 # number of participating clients
+batch_size: 64 # batch_size
+learning_rate: 0.01 # clients' local learning rate
+model: lenet # model architecture
+dataset: MNIST # dataset
+distribution: iid # data distribution
+im_iid_gamma: 0.01 # For class-imbalanced iid, smaller gamma, stronger imbalance
+tail_cls_from: 4 # For class-imbalanced iid, the tail classes start from 4
+dirichlet_alpha: 0.5 # For non-iid, smaller alpha, stronger heterogeneity
+cache_partition: False # whether to cache the partitioned client indices
+gpu_idx: [0] # Indices of GPU
+num_workers: 0
+record_time: False
+
+# general attack settings
+num_adv: 0.48 # the proportion (float < 1) or number (int>1) of adversaries
+
+# single-run defaults (can be overridden by CLI)
+attack: NoAttack
+defense: Mean
+
+attacks:
+  - attack: NoAttack
+
+  # ===== Pure Data Poisoning Attacks (DPAs) =====
+  - attack: BadNets
+    attack_params:
+      trigger_size: 5
+      attack_model: 'all2one' # all2one, all2all, targeted, random
+      poisoning_ratio: 0.32
+      target_label: 7
+      attack_strategy: continuous # ['single-shot','fixed-frequency','continuous']
+      # attack_start_epoch: 21
+
+  - attack: BadNets_image
+    attack_params:
+      trigger_path: ./attackers/triggers/trigger_white.png
+      trigger_size: 5
+      attack_model: 'all2one'
+      poisoning_ratio: 0.32
+      target_label: 7
+      attack_strategy: continuous
+
+  - attack: LabelFlipping
+    attack_params:
+      attack_model: 'targeted' # targeted will flip only source_label, not controlled by poisoning_ratio
+      source_label: 3
+      target_label: 7
+      attack_strategy: 'continuous'
+
+  - attack: DBA
+    attack_params:
+      attack_model: 'all2one'
+      scaling_factor: 100
+      trigger_factor: [8, 2, 0] # 8,2,0 for MNIST, 10,3,0 for CIFAR10
+      poisoning_ratio: 0.32
+      source_label: 2
+      target_label: 7
+      attack_strategy: 'continuous'
+      # poison_frequency: 10
+      # attack_start_epoch: 150
+
+# Defenses list kept the same as the original config (optional).
+defenses:
+  - defense: Mean
+  - defense: SimpleClustering
+  - defense: Krum
+    defense_params:
+      enable_check: False
+  - defense: MultiKrum
+    defense_params:
+      avg_percentage: 0.2
+      enable_check: False
+  - defense: TrimmedMean
+    defense_params:
+      beta: 0.1
+  - defense: Median
+  - defense: Bulyan
+    defense_params:
+      enable_check: False
+  - defense: RFA
+    defense_params:
+      num_iters: 3
+      epsilon: 1.0e-6
+  - defense: FLTrust
+    defense_params:
+      num_sample: 100
+  - defense: CenteredClipping
+    defense_params:
+      norm_threshold: 100
+      num_iters: 1
+  - defense: DnC
+    defense_params:
+      subsample_frac: 0.2
+      num_iters: 5
+      fliter_frac: 1.0
+  - defense: Bucketing
+    defense_params:
+      bucket_size: 2
+      selected_aggregator: 'Krum'
+  - defense: SignGuard
+    defense_params:
+      lower_bound: 0.1
+      upper_bound: 3.0
+      selection_fraction: 0.1
+      clustering: 'MeanShift'
+      random_seed: 2
+  - defense: LASA
+    defense_params:
+      norm_bound: 2
+      sign_bound: 1
+      sparsity: 0.3
+  - defense: Auror
+    defense_params:
+      indicative_threshold: 1.0e-4
+      indicative_find_epoch: 10
+  - defense: FoolsGold
+    defense_params:
+      epsilon: 1.0e-5
+      topk_ratio: 0.1
+  - defense: Bucketing
+    defense_params:
+      bucket_size: 2
+      selected_aggregator: Krum
+  - defense: NormClipping
+    defense_params:
+      weakDP: True
+      norm_threshold: 3
+      noise_mean: 0
+      noise_std: 0.002
+  - defense: CRFL
+    defense_params:
+      norm_threshold: 3
+      noise_mean: 0
+      noise_std: 0.001
+  - defense: DeepSight
+    defense_params:
+      num_seeds: 3
+      threshold_factor: 0.01
+      num_samples: 20000
+      tau: 0.33
+      epsilon: 1.0e-6
+  - defense: FLAME
+    defense_params:
+      gamma: 1.2e-5

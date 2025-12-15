@@ -22,6 +22,28 @@ PyTorch's implementation of poisoning attacks and defenses in federated learning
 
 Supported datasets and models pairs see [datamodel.pdf](docs/datamodel.pdf)
 
+## Setup Environment & Quick Run
+
+### macOS (osx-64 / Apple Silicon via Rosetta)
+
+The provided `environment.yaml` is pinned for Linux builds and may fail on macOS. Use `environment.macos.yaml` instead:
+
+```bash
+cd /Users/wind/Projects/AI/FLPoison
+conda env create -f environment.macos.yaml
+conda activate torchenv
+```
+
+Note: on `osx-64`, PyPI may not provide `torch==2.6.0` wheels; `environment.macos.yaml` pins a compatible torch/torchvision pair that is broadly available.
+
+Quick smoke test (fast, no attack/defense fancy stuff):
+
+```bash
+python main.py --config configs/FedOpt_MNIST_config.yaml -e 3 -num_clients 5 -num_adv 0.0 -att NoAttack -def Mean
+```
+
+Logs are written under `./logs/.../*.txt` and a plot `*.png` will be generated next to the log file.
+
 ## Federated Learning Algorithms
 
 <!-- prettier-ignore -->
