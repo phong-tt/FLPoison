@@ -31,7 +31,7 @@ num_adv: 0.48 # the proportion (float < 1) or number (int>1) of adversaries
 
 # single-run defaults (can be overridden by CLI)
 attack: NoAttack
-defense: Mean
+defense: NormClipping
 
 attacks:
   - attack: NoAttack
@@ -74,56 +74,8 @@ attacks:
       # poison_frequency: 10
       # attack_start_epoch: 150
 
-# Defenses list kept the same as the original config (optional).
+# Defenses: keep only defenses that directly target data poisoning / backdoor (DPA)
 defenses:
-  - defense: Mean
-  - defense: SimpleClustering
-  - defense: Krum
-    defense_params:
-      enable_check: False
-  - defense: MultiKrum
-    defense_params:
-      avg_percentage: 0.2
-      enable_check: False
-  - defense: TrimmedMean
-    defense_params:
-      beta: 0.1
-  - defense: Median
-  - defense: Bulyan
-    defense_params:
-      enable_check: False
-  - defense: RFA
-    defense_params:
-      num_iters: 3
-      epsilon: 1.0e-6
-  - defense: FLTrust
-    defense_params:
-      num_sample: 100
-  - defense: CenteredClipping
-    defense_params:
-      norm_threshold: 100
-      num_iters: 1
-  - defense: DnC
-    defense_params:
-      subsample_frac: 0.2
-      num_iters: 5
-      fliter_frac: 1.0
-  - defense: Bucketing
-    defense_params:
-      bucket_size: 2
-      selected_aggregator: 'Krum'
-  - defense: SignGuard
-    defense_params:
-      lower_bound: 0.1
-      upper_bound: 3.0
-      selection_fraction: 0.1
-      clustering: 'MeanShift'
-      random_seed: 2
-  - defense: LASA
-    defense_params:
-      norm_bound: 2
-      sign_bound: 1
-      sparsity: 0.3
   - defense: Auror
     defense_params:
       indicative_threshold: 1.0e-4
@@ -132,10 +84,6 @@ defenses:
     defense_params:
       epsilon: 1.0e-5
       topk_ratio: 0.1
-  - defense: Bucketing
-    defense_params:
-      bucket_size: 2
-      selected_aggregator: Krum
   - defense: NormClipping
     defense_params:
       weakDP: True
