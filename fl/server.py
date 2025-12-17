@@ -25,7 +25,11 @@ class Server(Worker):
 
         # initialize the aggregator for the server
         self.aggregator = get_aggregator(
-            self.args.defense)(self.args, train_dataset=self.train_dataset)
+            self.args.defense)(
+                self.args, 
+                train_dataset=self.train_dataset,
+                test_dataset=self.test_dataset
+            )
 
         if self.args.record_time:
             self.time_recorder = TimingRecorder(self.worker_id,

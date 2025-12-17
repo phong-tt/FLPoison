@@ -207,6 +207,14 @@ defenses:
           num_samples: 20000
           tau: 0.33
           epsilon: 1.0e-6
+    - defense: FLARE
+      defense_params:
+          aux_data_num: 200
+          selected_class: 1
+          tau: 1.0
+          mmd_kernel: 'rbf'
+          mmd_gamma: null
+          penultimate_layer_idx: null
     - defense: FLAME
       defense_params:
           gamma: 1.2e-5
