@@ -24,6 +24,42 @@ Supported datasets and models pairs see [datamodel.pdf](docs/datamodel.pdf)
 
 ## Setup Environment & Quick Run
 
+### Ubuntu Server (GPU)
+
+1. Install NVIDIA driver + CUDA (verify GPU):
+
+```bash
+nvidia-smi
+```
+
+2. Create the conda env and activate:
+
+```bash
+conda env create -f environment.yaml
+conda activate torchenv
+```
+
+3. Verify PyTorch can see CUDA:
+
+```bash
+python - <<'PY'
+import torch
+print(torch.__version__)
+print("cuda available:", torch.cuda.is_available())
+print("device:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu")
+PY
+```
+
+4. Run a quick experiment on a specific GPU (e.g. GPU 1):
+
+```bash
+python main.py --config sample_configs/FedOpt_MNIST_config.yaml -e 3 -num_clients 5 -num_adv 0.0 -att NoAttack -def Mean -gidx 1
+```
+
+Notes:
+- If `torch.cuda.is_available()` is `False`, reinstall PyTorch with a CUDA build that matches your driver.
+- For very new GPUs, you may need a newer/nightly PyTorch build.
+
 ### macOS (osx-64 / Apple Silicon via Rosetta)
 
 The provided `environment.yaml` is pinned for Linux builds and may fail on macOS. Use `environment.macos.yaml` instead:
@@ -39,7 +75,7 @@ Note: on `osx-64`, PyPI may not provide `torch==2.6.0` wheels; `environment.maco
 Quick smoke test (fast, no attack/defense fancy stuff):
 
 ```bash
-python main.py --config configs/FedOpt_MNIST_config.yaml -e 3 -num_clients 5 -num_adv 0.0 -att NoAttack -def Mean
+python main.py --config sample_configs/FedOpt_MNIST_config.yaml -e 3 -num_clients 5 -num_adv 0.0 -att NoAttack -def Mean
 ```
 
 Logs are written under `./logs/.../*.txt` and a plot `*.png` will be generated next to the log file.

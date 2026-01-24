@@ -22,7 +22,7 @@ im_iid_gamma: 0.01 # For class-imbalanced iid, smaller gamma, stronger imbalance
 tail_cls_from: 4 # For class-imbalanced iid, the tail classes start from 4
 dirichlet_alpha: 0.5 # For non-iid, smaller alpha, stronger heterogeneity
 cache_partition: False # whether to cache the partitioned client indices
-gpu_idx: [0] # Indices of GPU
+gpu_idx: [1] # Indices of GPU
 num_workers: 0
 record_time: False
 
