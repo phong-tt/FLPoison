@@ -1,17 +1,16 @@
 # This file serves as the configurations for the benchmarking experiments, including the basic configuration and the parameters for all attacks and defenses that are going to be tested. You can copy this file and modify it to run your own single attack and defense experiments.
 seed: 4 # seed for reproducibility
 # basic configuration
-epochs: 100 # global epochs
-algorithm: FedOpt # algorithm, FedSGD, FedAvg, FedOpt
+epochs: 300 # global epochs
+algorithm: FedSGD # algorithm, FedSGD, FedAvg, FedOpt
 optimizer: SGD # optimizer for training
 momentum: 0.9
 weight_decay: 5.0e-4
 # lr_scheduler: MultiStepLR # learning rate scheduler
-# milestones: [0.5, 0.8] # milestones for learning rate scheduler
+# milestones: [0.6, 0.8] # milestones for learning rate scheduler
 num_clients: 50 # number of participating clients
 batch_size: 64 # batch_size
 learning_rate: 0.01 # clients' local learning rate
-local_epochs: 5 # local global_epoch
 model: lenet # model architecture
 dataset: MNIST # dataset
 distribution: iid # data distribution
@@ -19,7 +18,7 @@ im_iid_gamma: 0.01 # For class-imbalanced iid, smaller gamma, stronger imbalance
 tail_cls_from: 4 # For class-imbalanced iid, the tail classes start from 4
 dirichlet_alpha: 0.5 # For non-iid, smaller alpha, stronger heterogeneity, normally use 0.1, 0.5, 0.9, 1
 cache_partition: False # whether to cache the partitioned client indices
-gpu_idx: [0] # Indices of GPU
+gpu_idx: [1] # Indices of GPU
 num_workers: 0
 record_time: False
 
@@ -29,6 +28,10 @@ num_adv: 0.48 # the proportion (float < 1) or number (int>1) of adversaries
 attack: NoAttack
 defense: Mean
 
+# ! Please follow the format below to specify the attack and defense settings
+# ! for attacks, `num_adv` should be specified, and `attack_params` should be specified with the corresponding parameters.
+# ! Note that for backdoor attacks, you should specify the backdoor strategy, ['all2one', 'all2all', 'targeted'] and corresponding parameters, `poisoning_ratio` and [`source_label`, `target_label`] for targeted, `target_label` for all2one, nothing for all2all.
+
 attacks:
     - attack: NoAttack
     - attack: IPM
@@ -36,8 +39,8 @@ attacks:
           scaling_factor: 0.5 # 0.5, 100
           # attack_start_epoch: 11
     - attack: ALIE
-      attack_params:
-          attack_start_epoch: 41
+      # attack_params:
+      #     attack_start_epoch: 41
     - attack: Gaussian
       attack_params:
           noise_mean: 0
@@ -75,7 +78,7 @@ attacks:
     - attack: LabelFlipping
       attack_params:
           attack_model: "targeted" # "targeted" will not affect by poisoning_ratio, because it will flip only the source labels in a batch
-          source_label: 3
+          source_label: 3 # in our non-iid partiton, label=3 is owned by all clients
           target_label: 7
           attack_strategy: "continuous"
           # poisoning_ratio: 0.25 # poisoning portion
@@ -92,7 +95,7 @@ attacks:
       attack_params:
           attack_model: "all2one"
           scaling_factor: 100
-          trigger_factor: [10, 2, 0] # Following the paper, 4,2,0 for MNIST, 6,3,0 for CIFAR10
+          trigger_factor: [8, 2, 0] # 8,2,0 for MNIST, 10,3,0 for CIFAR10
           poisoning_ratio: 0.32
           source_label: 2
           target_label: 7
@@ -101,7 +104,7 @@ attacks:
           # attack_start_epoch: 150
     - attack: EdgeCase
       attack_params:
-          poisoning_ratio: 1
+          poisoning_ratio: 0.5
           epsilon: 0.25 # For PGD with replacement, 0.25 for mnist, 0.083 for cifar10
           projection_type: "l_2"
           l2_proj_frequency: 1
@@ -180,16 +183,12 @@ defenses:
           sparsity: 0.3
     - defense: Auror
       defense_params: # Parameters for defenses
-          indicative_threshold: 3.0e-4
+          indicative_threshold: 1.0e-4
           indicative_find_epoch: 10
     - defense: FoolsGold
       defense_params:
           epsilon: 1.0e-5
           topk_ratio: 0.1
-    - defense: Bucketing
-      defense_params:
-          bucket_size: 2
-          selected_aggregator: Krum
     - defense: NormClipping # weak differential privacy=norm clipping + differential privacy
       defense_params:
           weakDP: True

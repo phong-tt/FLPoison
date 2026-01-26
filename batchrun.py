@@ -178,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument('-attacks', '--attacks', nargs='+', default=['NoAttack', 'Gaussian', 'SignFlipping', 'IPM', 'ALIE', 'FangAttack', 'MinMax',
                         'MinSum',  'Mimic', 'LabelFlipping', 'BadNets', 'ModelReplacement', 'DBA', 'AlterMin', 'EdgeCase', 'Neurotoxin'], help="List of attacks to use.")
     parser.add_argument('-defenses', '--defenses', nargs='+', default=['Mean', 'Krum', 'MultiKrum', 'TrimmedMean', 'Median', 'Bulyan', 'RFA', 'FLTrust',
-                        'CenteredClipping', 'DnC', 'Bucketing', 'SignGuard', 'Auror', 'FoolsGold', 'NormClipping', 'CRFL', 'DeepSight', 'FLAME'], help="List of defenses to use.")
+                        'CenteredClipping', 'DnC', 'Bucketing', 'SignGuard', 'Auror', 'FoolsGold', 'NormClipping', 'CRFL', 'DeepSight', 'FLARE', 'FLAME'], help="List of defenses to use.")
     # Parse the arguments
     args = parser.parse_args()
     # Call the main function with parsed args
