@@ -219,6 +219,13 @@ defenses:
           mmd_kernel: 'rbf'
           mmd_gamma: null
           penultimate_layer_idx: null
+    - defense: CPLRFL
+      defense_params:
+          samples_per_class: 50
+          similarity_metric: 'mmd'
+          tau: 1.0
+          mmd_kernel: 'rbf'
+          mmd_gamma: null
     - defense: FLAME
       defense_params:
           gamma: 1.2e-5

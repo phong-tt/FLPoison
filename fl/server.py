@@ -50,7 +50,7 @@ class Server(Worker):
     def aggregation(self):
         # aggregate gradient (for fedsgd), model parameters (for fedavg), and return the aggregated model parameters
         self.aggregated_update = self.aggregator.aggregate(
-            self.client_updates, last_global_model=self.global_model, global_weights_vec=self.global_weights_vec, global_epoch=self.global_epoch)
+            self.client_updates, last_global_model=self.global_model, global_weights_vec=self.global_weights_vec, global_epoch=self.global_epoch, clients=self.clients)
 
     def update_global(self):
         # update the global model with the aggregated update w.r.t the algorithm

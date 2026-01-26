@@ -190,7 +190,12 @@ def single_preprocess(args):
     ensure_attr(args, 'defense_params')
 
     # generate output path if not provided
-    args.output = f'./logs/{args.algorithm}/{args.dataset}_{args.model}/{args.distribution}/{args.dataset}_{args.model}_{args.distribution}_{args.attack}_{args.defense}_{args.epochs}_{args.num_clients}_{args.learning_rate}_{args.algorithm}.txt'
+    # Include dirichlet_alpha in filename for non-iid distributions to distinguish different alpha values
+    if args.distribution == 'non-iid' and hasattr(args, 'dirichlet_alpha') and args.dirichlet_alpha is not None:
+        alpha_suffix = f"_alpha{args.dirichlet_alpha}"
+    else:
+        alpha_suffix = ""
+    args.output = f'./logs/{args.algorithm}/{args.dataset}_{args.model}/{args.distribution}/{args.dataset}_{args.model}_{args.distribution}{alpha_suffix}_{args.attack}_{args.defense}_{args.epochs}_{args.num_clients}_{args.learning_rate}_{args.algorithm}.txt'
 
     # check output path, if exists, skip, otherwise create the directories
     os.makedirs(os.path.dirname(args.output), exist_ok=True)

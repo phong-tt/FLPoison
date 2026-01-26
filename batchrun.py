@@ -41,6 +41,7 @@ def get_configs(dataset, algorithm, distribution, defense):
     params = {
         "MNIST": {
             "FedSGD": {"epoch": 300, "lr": 0.01},
+            "FedAvg": {"epoch": 100, "lr": 0.01},
             "FedOpt": {"epoch": 100, "lr": 0.01}
         },
         "CIFAR10": {
@@ -127,8 +128,20 @@ def main(args):
                         num_clients, epoch, learning_rate = get_configs(
                             dataset, algorithm, distribution, defense)
 
-                        command = f'python -u main.py -config=./configs/{config_file} -data {dataset} -model {model} -e {epoch} -att {attack} -def {defense} -dtb {distribution} -alg {algorithm} -lr {learning_rate} -gidx {gpu_idx}'
-                        file_name = f'{dir}/logs/{algorithm}/{dataset}_{model}/{distribution}/{dataset}_{model}_{distribution}_{attack}_{defense}_{epoch}_{num_clients}_{learning_rate}_{algorithm}.txt'
+                        # Read config to get dirichlet_alpha for non-iid
+                        config_path = f'./configs/{config_file}'
+                        config_data = read_yaml(config_path) if os.path.exists(config_path) else {}
+                        dirichlet_alpha = config_data.get('dirichlet_alpha', None)
+                        
+                        # Build command
+                        command = f'python -u main.py -config={config_path} -data {dataset} -model {model} -e {epoch} -att {attack} -def {defense} -dtb {distribution} -alg {algorithm} -lr {learning_rate} -gidx {gpu_idx}'
+                        
+                        # Build filename matching global_args.py logic (include alpha for non-iid)
+                        if distribution == 'non-iid' and dirichlet_alpha is not None:
+                            alpha_suffix = f"_alpha{dirichlet_alpha}"
+                        else:
+                            alpha_suffix = ""
+                        file_name = f'{dir}/logs/{algorithm}/{dataset}_{model}/{distribution}/{dataset}_{model}_{distribution}{alpha_suffix}_{attack}_{defense}_{epoch}_{num_clients}_{learning_rate}_{algorithm}.txt'
 
                         # Add the task to the list
                         tasks.append((command, file_name))
@@ -178,7 +191,7 @@ if __name__ == "__main__":
     parser.add_argument('-attacks', '--attacks', nargs='+', default=['NoAttack', 'Gaussian', 'SignFlipping', 'IPM', 'ALIE', 'FangAttack', 'MinMax',
                         'MinSum',  'Mimic', 'LabelFlipping', 'BadNets', 'ModelReplacement', 'DBA', 'AlterMin', 'EdgeCase', 'Neurotoxin'], help="List of attacks to use.")
     parser.add_argument('-defenses', '--defenses', nargs='+', default=['Mean', 'Krum', 'MultiKrum', 'TrimmedMean', 'Median', 'Bulyan', 'RFA', 'FLTrust',
-                        'CenteredClipping', 'DnC', 'Bucketing', 'SignGuard', 'Auror', 'FoolsGold', 'NormClipping', 'CRFL', 'DeepSight', 'FLARE', 'FLAME'], help="List of defenses to use.")
+                        'CenteredClipping', 'DnC', 'Bucketing', 'SignGuard', 'Auror', 'FoolsGold', 'NormClipping', 'CRFL', 'DeepSight', 'FLARE', 'CPLRFL', 'FLAME'], help="List of defenses to use.")
     # Parse the arguments
     args = parser.parse_args()
     # Call the main function with parsed args

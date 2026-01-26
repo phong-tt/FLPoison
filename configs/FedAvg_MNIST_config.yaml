@@ -1,0 +1,58 @@
+# FedAvg + MNIST — Quick wins: local_epochs 2, num_clients 20, epochs 150, FLARE aux_data_num 100
+# Use with: --config này, chỉ override: -dtb non-iid -dirichlet_alpha <float> (nếu non-iid)
+seed: 4
+epochs: 150
+algorithm: FedAvg
+optimizer: SGD
+momentum: 0.9
+weight_decay: 5.0e-4
+num_clients: 20
+batch_size: 4096
+learning_rate: 0.01
+local_epochs: 2
+model: lenet
+dataset: MNIST
+distribution: iid
+im_iid_gamma: 0.01
+tail_cls_from: 4
+dirichlet_alpha: 0.5
+cache_partition: False
+gpu_idx: [1]
+num_workers: 16
+record_time: False
+
+num_adv: 0.2
+attack: DBA
+defense: FLARE
+
+attacks:
+  - attack: NoAttack
+  - attack: DBA
+    attack_params:
+      attack_model: "all2one"
+      scaling_factor: 100
+      trigger_factor: [8, 2, 0]
+      poisoning_ratio: 0.32
+      source_label: 2
+      target_label: 7
+      attack_strategy: "continuous"
+
+defenses:
+  - defense: Mean
+  - defense: FLARE
+    defense_params:
+      aux_data_num: 100
+      selected_class: 1
+      tau: 1.0
+      mmd_kernel: "rbf"
+      mmd_gamma: null
+  - defense: CPLRFL
+    defense_params:
+      samples_per_class: 50
+      similarity_metric: "mmd"
+      tau: 1.0
+      mmd_kernel: "rbf"
+      mmd_gamma: null
+  - defense: FLAME
+    defense_params:
+      gamma: 1.2e-5
