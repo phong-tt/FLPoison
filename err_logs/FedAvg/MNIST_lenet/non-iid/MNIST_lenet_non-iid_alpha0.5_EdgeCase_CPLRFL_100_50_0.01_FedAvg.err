@@ -1,0 +1,31 @@
+Warning: Overriding benchmark with False
+Warning: Overriding epochs with 100
+Warning: Overriding algorithm with FedAvg
+Warning: Overriding learning_rate with 0.01
+Warning: Overriding model with lenet
+Warning: Overriding dataset with MNIST
+Warning: Overriding distribution with non-iid
+Warning: Overriding gpu_idx with [1]
+Using device: cuda:1
+Traceback (most recent call last):
+  File "/home/lyvt/FLPoison/main.py", line 148, in <module>
+    main(args, cli_args)
+  File "/home/lyvt/FLPoison/main.py", line 143, in main
+    fl_run(args)
+  File "/home/lyvt/FLPoison/main.py", line 33, in fl_run
+    clients = coordinator.init_clients(
+  File "/home/lyvt/FLPoison/fl/coordinator.py", line 26, in init_clients
+    tmp_client = client_obj(args, worker_id,
+  File "/home/lyvt/FLPoison/global_utils.py", line 53, in new_init
+    original_init(self, *args, **kwargs)
+  File "/home/lyvt/FLPoison/attackers/edgecase.py", line 42, in __init__
+    self.define_synthesizer()
+  File "/home/lyvt/FLPoison/attackers/edgecase.py", line 49, in define_synthesizer
+    self.args, self.train_dataset, EdgeDataset(self.args, self.target_label), self.poisoning_ratio)
+  File "/home/lyvt/FLPoison/datapreprocessor/edge_dataset.py", line 22, in __init__
+    self.data_obj = ARDIS(args, self.target_label)
+  File "/home/lyvt/FLPoison/datapreprocessor/edge_dataset.py", line 173, in __init__
+    source_target_check(self.source_label,  self.target_label)
+  File "/home/lyvt/FLPoison/datapreprocessor/edge_dataset.py", line 259, in source_target_check
+    raise ValueError(
+ValueError: The source label and target label should not be the same, currently they are both 7

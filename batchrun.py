@@ -130,8 +130,8 @@ def main(args):
 
                         # Read config to get dirichlet_alpha for non-iid
                         config_path = f'./configs/{config_file}'
-                        config_data = read_yaml(config_path) if os.path.exists(config_path) else {}
-                        dirichlet_alpha = config_data.get('dirichlet_alpha', None)
+                        config_data = read_yaml(config_path) if os.path.exists(config_path) else None
+                        dirichlet_alpha = getattr(config_data, 'dirichlet_alpha', None) if config_data else None
                         
                         # Build command
                         command = f'python -u main.py -config={config_path} -data {dataset} -model {model} -e {epoch} -att {attack} -def {defense} -dtb {distribution} -alg {algorithm} -lr {learning_rate} -gidx {gpu_idx}'

@@ -43,6 +43,8 @@ class FoolsGold(AggregatorBase):
             cid_norm = np.linalg.norm(gradient_updates[cid])
             if cid_norm > 1:
                 gradient_updates[cid] /= cid_norm
+            # Replace any NaN values that may have occurred
+            gradient_updates[cid] = np.nan_to_num(gradient_updates[cid], nan=0.0, posinf=0.0, neginf=0.0)
         self.checkpoints.append(copy.deepcopy(gradient_updates))
         sumed_updates = np.sum(self.checkpoints, axis=0)
         # 2. get the indicative features mask via top-k largest absolute value of the last global model
@@ -52,8 +54,20 @@ class FoolsGold(AggregatorBase):
             ol_last_global_model, feature_dim)
 
         # 3. calculate the cosine similarity (cs) between the clients' sum value and get the max cs value of each client
-        cos_dist = smp.cosine_similarity(
-            sumed_updates[:, indicative_mask == 1]) - np.eye(self.args.num_clients, dtype=np.float32)
+        # Extract indicative features
+        indicative_features = sumed_updates[:, indicative_mask == 1]
+        
+        # Handle NaN values (can occur from normalization or empty gradients)
+        indicative_features = np.nan_to_num(indicative_features, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        # Check if we have any features selected
+        if indicative_features.shape[1] == 0:
+            # No indicative features found, use uniform weights
+            wv = np.ones((self.args.num_clients, 1), dtype=np.float32) / self.args.num_clients
+            agg_grad_updates = np.dot(gradient_updates.T, wv)
+            return wrapup_aggregated_grads(agg_grad_updates, self.args.algorithm, self.global_model, aggregated=True)
+        
+        cos_dist = smp.cosine_similarity(indicative_features) - np.eye(self.args.num_clients, dtype=np.float32)
 
         wv = self.pardoning(cos_dist)  # weight of updates
         agg_grad_updates = np.dot(gradient_updates.T, wv)
