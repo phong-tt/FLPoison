@@ -1,0 +1,6 @@
+nohup: ignoring input
+Warning: Overriding benchmark with False
+Warning: Overriding epochs with 500
+Warning: Overriding distribution with non-iid
+Warning: Overriding dirichlet_alpha with 0.1
+Using device: cuda:1

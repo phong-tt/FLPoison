@@ -1,0 +1,12 @@
+seed: 4, epochs: 300, algorithm: FedAvg, optimizer: SGD, momentum: 0.9, weight_decay: 0.0005, num_clients: 20, batch_size: 4096, learning_rate: 0.01, local_epochs: 2, model: lenet, dataset: MNIST, distribution: non-iid, im_iid_gamma: 0.01, tail_cls_from: 4, dirichlet_alpha: 0.1, cache_partition: False, gpu_idx: [1], num_workers: 16, record_time: False, num_adv: 4, attack: IPM, defense: CPLRFL, attack_params: {'attack_model': 'all2one', 'scaling_factor': 100, 'trigger_factor': [8, 2, 0], 'poisoning_ratio': 0.32, 'source_label': 2, 'target_label': 7, 'attack_strategy': 'continuous'}, defense_params: {'samples_per_class': 50, 'similarity_metric': 'mmd', 'tau': 1.0, 'mmd_kernel': 'rbf', 'mmd_gamma': None}, benchmark: False, num_training_sample: 60000, num_channels: 1, num_classes: 10, mean: (0.1307,), std: (0.3081,), device: cuda:1, output: ./logs/FedAvg/MNIST_lenet/non-iid/MNIST_lenet_non-iid_alpha0.1_IPM_CPLRFL_mmd_gammaNone_mmd_kernelrbf_spc50_simmmd_tau1.0_300_20_0.01_FedAvg.txt
+
+Started on Wed Jan 28 17:32:56 2026
+Generating new indices
+Doing non-iid partition
+dirichlet alpha: 0.1
+non-iid partition finished
+Data partitioned
+Clients and server are initialized
+Starting Training...
+Epoch 0  		Train Acc: 0.0784	Train loss: 0.0038	Test Acc: 0.0979	Test loss: 0.4733
+Epoch 1  		Train Acc: 0.3310	Train loss: 54.2934	Test Acc: 0.0980	Test loss: 43985503107678.2109

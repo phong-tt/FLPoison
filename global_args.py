@@ -133,13 +133,21 @@ def override_args(args, cli_args):
             print(f"Warning: Overriding {key} with {value}")
 
     # override attack, defense, attack_params, defense_params
+    import json
     for param_type in ['attack', 'defense']:
         if eval(f"cli_args.{param_type}"):  # if not None
             setattr(args, param_type, eval(f"cli_args.{param_type}"))
             # if attack_params or defense_params is provided by cli_args, override the corresponding params
-            if eval(f"cli_args.{param_type}_params"):
-                setattr(args, f'{param_type}_params',
-                        eval(f"cli_args.{param_type}_params"))
+            params_str = eval(f"cli_args.{param_type}_params")
+            if params_str:
+                # Use json.loads instead of eval for safer parsing
+                try:
+                    params_dict = json.loads(params_str)
+                    setattr(args, f'{param_type}_params', params_dict)
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing {param_type}_params: {e}")
+                    print(f"Received: {params_str}")
+                    raise
             else:
                 # if not provided, set the params to default
                 for i in eval(f"args.{param_type}s"):
@@ -195,7 +203,20 @@ def single_preprocess(args):
         alpha_suffix = f"_alpha{args.dirichlet_alpha}"
     else:
         alpha_suffix = ""
-    args.output = f'./logs/{args.algorithm}/{args.dataset}_{args.model}/{args.distribution}/{args.dataset}_{args.model}_{args.distribution}{alpha_suffix}_{args.attack}_{args.defense}_{args.epochs}_{args.num_clients}_{args.learning_rate}_{args.algorithm}.txt'
+    
+    # Include defense_params in filename to distinguish different parameter configurations
+    defense_params_suffix = ""
+    if args.defense_params and isinstance(args.defense_params, dict):
+        # Create compact suffix from defense_params
+        param_parts = []
+        for key, value in sorted(args.defense_params.items()):
+            # Shorten common parameter names
+            short_key = key.replace('samples_per_class', 'spc').replace('similarity_metric', 'sim')
+            param_parts.append(f"{short_key}{value}")
+        if param_parts:
+            defense_params_suffix = f"_{'_'.join(param_parts)}"
+    
+    args.output = f'./logs/{args.algorithm}/{args.dataset}_{args.model}/{args.distribution}/{args.dataset}_{args.model}_{args.distribution}{alpha_suffix}_{args.attack}_{args.defense}{defense_params_suffix}_{args.epochs}_{args.num_clients}_{args.learning_rate}_{args.algorithm}.txt'
 
     # check output path, if exists, skip, otherwise create the directories
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
