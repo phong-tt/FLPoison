@@ -1,5 +1,5 @@
-# FedAvg + MNIST clean baseline
-# Default target: stable high accuracy in NoAttack setting.
+# FedAvg + CIFAR10 with LeNet
+# Convention aligned with MNIST+LeNet experiments (500 rounds, 20 clients, lr=0.01).
 seed: 4
 epochs: 500
 algorithm: FedAvg
@@ -12,7 +12,7 @@ learning_rate: 0.01
 local_epochs: 5
 lr_scheduler: CosineAnnealingLR
 model: lenet
-dataset: MNIST
+dataset: CIFAR10
 distribution: iid
 im_iid_gamma: 0.01
 tail_cls_from: 4
@@ -25,7 +25,6 @@ record_time: False
 num_adv: 0.2
 attack: NoAttack
 defense: Mean
-# Note: EdgeCase uses ARDIS dataset with source_label=7, target_label must be != 7
 
 attacks:
   - attack: NoAttack

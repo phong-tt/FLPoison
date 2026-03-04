@@ -89,3 +89,12 @@ class DPBase(PBase):
                 test_dataset, False, poison_epochs=True)
         test_acc, test_loss = self.test(model, posioned_testloader)
         return test_acc, test_loss
+
+    def validate(self):
+        """
+        Validate attacker on its local validation subset with poisoning enabled.
+        """
+        val_dataset = getattr(self, "val_dataset", None)
+        if val_dataset is None:
+            return float("nan"), float("nan")
+        return self.client_test(model=self.model, test_dataset=val_dataset, poison_epochs=True)

@@ -1,12 +1,19 @@
 import gc
 import logging
+import os
 import time
 from fl import coordinator
 from global_args import benchmark_preprocess, read_args, override_args, single_preprocess
 from global_utils import avg_value, print_filtered_args, setup_logger, setup_seed
-from datapreprocessor.data_utils import load_data, split_dataset
+from datapreprocessor.data_utils import (
+    load_data,
+    split_dataset,
+    reassign_adversary_indices,
+    split_client_train_val_indices,
+)
 from fl.server import Server
-from plot_utils import plot_accuracy
+from plot_utils import plot_accuracy, plot_convergence, plot_label_distribution, visualize_dba_triggers
+from attackers import data_poisoning_attacks, hybrid_attacks
 
 
 def fl_run(args):
@@ -20,6 +27,7 @@ def fl_run(args):
     start_time = time.time()
     args.logger.info(
         f"Started on {time.asctime(time.localtime(start_time))}")
+    run_tag = os.path.splitext(os.path.basename(args.output))[0]
     # fix randomness
     setup_seed(args.seed)
 
@@ -29,10 +37,37 @@ def fl_run(args):
         args, train_dataset, test_dataset)
     args.logger.info("Data partitioned")
 
+    # reassign adversary slots to clients best suited for the attack
+    client_indices = reassign_adversary_indices(
+        args, train_dataset, client_indices)
+    client_train_indices, client_val_indices = split_client_train_val_indices(
+        client_indices, train_ratio=7, val_ratio=1
+    )
+    total_train = sum(len(x) for x in client_train_indices)
+    total_val = sum(len(x) for x in client_val_indices)
+    args.logger.info(
+        f"Client train/val split ready (train={total_train}, val={total_val}, ratio=7/1)")
+
+    # visualize non-IID label distribution
+    if args.distribution == "non-iid":
+        output_dir = os.path.dirname(args.output)
+        alpha_val = getattr(args, 'dirichlet_alpha', None)
+        plot_label_distribution(
+            train_dataset, client_indices, args.num_clients,
+            args.dataset, args.distribution,
+            output_dir=output_dir, num_adv=args.num_adv,
+            dirichlet_alpha=alpha_val, filename_prefix=run_tag)
+        args.logger.info(f"Non-IID distribution chart saved to {output_dir}")
+
     # 2. initialize clients and server with seperate training data indices
     clients = coordinator.init_clients(
-        args, client_indices, train_dataset, test_dataset)
+        args, client_train_indices, client_val_indices, train_dataset, test_dataset)
     the_server = Server(args, clients, test_dataset, train_dataset)
+
+    # visualize DBA triggers
+    if args.attack == "DBA" and args.attack in data_poisoning_attacks + hybrid_attacks:
+        visualize_dba_triggers(clients[0], args, filename_prefix=run_tag)
+        args.logger.info(f"DBA trigger visualization saved")
 
     # 3. initialize the federated learning algorithm for clients and server
     coordinator.set_fl_algorithm(args, the_server, clients)
@@ -46,16 +81,28 @@ def fl_run(args):
 
         # clients' local training
         avg_train_acc, avg_train_loss = [], []
+        avg_val_acc, avg_val_loss = [], []
         for client in clients:
             client.load_global_model(global_weights_vec)
             train_acc, train_loss = client.local_training()
+            val_acc, val_loss = client.validate()
+            client.maybe_update_best_checkpoint(val_acc, global_epoch)
             client.fetch_updates()
             avg_train_acc.append(train_acc)
             avg_train_loss.append(train_loss)
+            avg_val_acc.append(val_acc)
+            avg_val_loss.append(val_loss)
 
         avg_train_loss = avg_value(avg_train_loss)
         avg_train_acc = avg_value(avg_train_acc)
-        epoch_msg += f"\tTrain Acc: {avg_train_acc:.4f}\tTrain loss: {avg_train_loss:.4f}\t"
+        valid_val_acc = [x for x in avg_val_acc if x == x]
+        valid_val_loss = [x for x in avg_val_loss if x == x]
+        mean_val_acc = avg_value(valid_val_acc) if valid_val_acc else float("nan")
+        mean_val_loss = avg_value(valid_val_loss) if valid_val_loss else float("nan")
+        epoch_msg += (
+            f"\tTrain Acc: {avg_train_acc:.4f}\tTrain loss: {avg_train_loss:.4f}\t"
+            f"Val Acc: {mean_val_acc:.4f}\tVal loss: {mean_val_loss:.4f}\t"
+        )
 
         # perform post-training attacks, for omniscient model poisoning attack, pass all clients
         omniscient_attack(clients)
@@ -65,13 +112,7 @@ def fl_run(args):
         the_server.aggregation()
         the_server.update_global()
 
-        # evalute the attack success rate (ASR) when a backdoor attack is launched
-        test_stats = coordinator.evaluate(
-            the_server, test_dataset, args, global_epoch)
-
-        # print the training and testing results of the current global_epoch
-        epoch_msg += "\t".join(
-            [f"{key}: {value:.4f}" for key, value in test_stats.items()])
+        # print the training and validation results of the current global_epoch
         args.logger.info(epoch_msg)
         # clear memory
         gc.collect()
@@ -79,7 +120,38 @@ def fl_run(args):
     if args.record_time:
         report_time(clients, the_server)
 
+    final_stats = coordinator.final_evaluate_from_best_checkpoints(
+        clients, test_dataset, args
+    )
+    for idx, metrics in enumerate(final_stats["clean_per_client"]):
+        args.logger.info(
+            f"Final Client {idx:02d} | best_epoch={int(metrics['best_epoch'])} "
+            f"best_val_acc={metrics['best_val_acc']:.4f} "
+            f"test_acc={metrics['acc']:.4f} precision={metrics['precision']:.4f} "
+            f"recall={metrics['recall']:.4f} f1={metrics['f1']:.4f} "
+            f"auc={metrics['auc']:.4f} test_loss={metrics['loss']:.4f} "
+            f"asr={final_stats['asr_per_client'][idx]['asr']:.4f} "
+            f"asr_loss={final_stats['asr_per_client'][idx]['asr_loss']:.4f}"
+        )
+
+    clean_summary = final_stats["clean_summary"]
+    asr_summary = final_stats["asr_summary"]
+    args.logger.info(
+        "Final Summary | "
+        f"test_acc_mean={clean_summary.get('acc_mean', float('nan')):.4f} "
+        f"test_acc_std={clean_summary.get('acc_std', float('nan')):.4f} "
+        f"precision_mean={clean_summary.get('precision_mean', float('nan')):.4f} "
+        f"recall_mean={clean_summary.get('recall_mean', float('nan')):.4f} "
+        f"f1_mean={clean_summary.get('f1_mean', float('nan')):.4f} "
+        f"auc_mean={clean_summary.get('auc_mean', float('nan')):.4f} "
+        f"test_loss_mean={clean_summary.get('loss_mean', float('nan')):.4f} "
+        f"asr_mean={asr_summary.get('asr_mean', float('nan')):.4f} "
+        f"asr_std={asr_summary.get('asr_std', float('nan')):.4f} "
+        f"asr_loss_mean={asr_summary.get('asr_loss_mean', float('nan')):.4f}"
+    )
+
     plot_accuracy(args.output)
+    plot_convergence(args.output)
 
     end_time = time.time()
     time_difference = end_time - start_time

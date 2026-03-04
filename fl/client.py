@@ -1,4 +1,5 @@
 import torch
+from copy import deepcopy
 from fl.algorithms import get_algorithm_handler
 from fl.models import get_model
 from fl.models.model_utils import vec2model
@@ -13,7 +14,11 @@ class Client(Worker):
         Worker.__init__(self, args, worker_id)
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
+        self.val_dataset = None
         self.global_epoch = 0
+        self.best_val_acc = float("-inf")
+        self.best_epoch = -1
+        self.best_model_state = None
         # initialize the model
         self.model = get_model(args)
         # initialize the optimizer and lr_scheduler
@@ -102,3 +107,23 @@ class Client(Worker):
         test_loader = self.get_dataloader(test_dataset, train_flag=False)
         test_acc, test_loss = self.test(model, test_loader)
         return test_acc, test_loss
+
+    def validate(self):
+        """
+        Validate on local validation subset.
+        """
+        if self.val_dataset is None:
+            return float("nan"), float("nan")
+        return self.client_test(model=self.model, test_dataset=self.val_dataset)
+
+    def maybe_update_best_checkpoint(self, val_acc, global_epoch):
+        if val_acc > self.best_val_acc:
+            self.best_val_acc = val_acc
+            self.best_epoch = global_epoch
+            self.best_model_state = deepcopy(
+                {k: v.detach().cpu() for k, v in self.model.state_dict().items()}
+            )
+
+    def load_best_checkpoint(self):
+        if self.best_model_state is not None:
+            self.model.load_state_dict(self.best_model_state)

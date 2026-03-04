@@ -47,8 +47,9 @@ class Worker:
         loss.backward()
         predicted = torch.argmax(pred_probs.data, 1)
         train_acc = (predicted == targets).sum().item()
+        # CrossEntropyLoss() returns mean loss over the batch by default.
+        # Keep this value directly to avoid dividing by batch size twice.
         train_loss = loss.item()
-        train_loss /= len(images)
         train_acc /= len(images)
         return train_acc, train_loss
 
@@ -70,7 +71,9 @@ class Worker:
                 predicted = torch.argmax(pred_probs.data, 1)
                 num_samples += len(targets)
                 overall_correct += (predicted == targets).sum().item()
-                test_loss += loss.item()
+                # Accumulate sample-weighted batch loss so final value is
+                # an unbiased per-sample average over the full test set.
+                test_loss += loss.item() * len(targets)
 
                 if imbalanced:
                     # calculate the rest class accuracy, from 5-9 for 10 classes

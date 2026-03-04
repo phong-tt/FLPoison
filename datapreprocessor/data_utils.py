@@ -136,6 +136,35 @@ def split_dataset(args, train_dataset, test_dataset):
     return client_indices, test_dataset
 
 
+def split_client_train_val_indices(client_indices, train_ratio=7, val_ratio=1):
+    """
+    Split each client's indices into train/val subsets.
+    The split is deterministic under the global random seed set by caller.
+    """
+    if train_ratio <= 0 or val_ratio <= 0:
+        raise ValueError("train_ratio and val_ratio must be positive.")
+
+    split_ratio = train_ratio / (train_ratio + val_ratio)
+    client_train_indices, client_val_indices = [], []
+
+    for indices in client_indices:
+        idx_tensor = torch.as_tensor(indices, dtype=torch.long)
+        if len(idx_tensor) == 0:
+            client_train_indices.append(idx_tensor)
+            client_val_indices.append(idx_tensor)
+            continue
+
+        perm = torch.randperm(len(idx_tensor))
+        shuffled = idx_tensor[perm]
+        split_point = int(len(shuffled) * split_ratio)
+        split_point = min(max(split_point, 1), len(shuffled) - 1)
+
+        client_train_indices.append(shuffled[:split_point])
+        client_val_indices.append(shuffled[split_point:])
+
+    return client_train_indices, client_val_indices
+
+
 def save_partition_cache(client_indices, file_path):
     with open(file_path, 'wb') as f:
         pickle.dump(client_indices, f)
@@ -279,6 +308,77 @@ def dirichlet_split_noniid(train_labels, alpha, n_clients):
     client_idcs = [np.concatenate(idcs) for idcs in client_idcs]
 
     return client_idcs
+
+
+_KNOWN_ATTACK_DEFAULTS = {
+    'DBA':              {'attack_model': 'all2one', 'source_label': 2},
+    'BadNets':          {'attack_model': 'all2one', 'source_label': 1},
+    'BadNets_image':    {'attack_model': 'all2one', 'source_label': 1},
+    'ModelReplacement': {'attack_model': 'all2one', 'source_label': 3},
+    'LabelFlipping':    {'attack_model': 'all2one', 'source_label': None},
+    'EdgeCase':         {'attack_model': 'all2one', 'source_label': None},
+    'Neurotoxin':       {'attack_model': 'all2one', 'source_label': None},
+}
+
+
+def _resolve_attack_params(args):
+    """Return (attack_model, source_label) by merging known defaults with user-supplied params."""
+    params = dict(_KNOWN_ATTACK_DEFAULTS.get(args.attack, {}))
+    if args.attack_params:
+        params.update(args.attack_params)
+    return params.get('attack_model', 'all2one'), params.get('source_label')
+
+
+def reassign_adversary_indices(args, train_dataset, client_indices):
+    """
+    Rearrange client_indices so that the first num_adv entries belong to
+    clients best suited for the backdoor attack under non-IID partitioning.
+
+    - targeted mode: pick clients with the most source_label samples.
+    - all2one / other modes: pick clients with the most total samples.
+    """
+    from attackers import data_poisoning_attacks, hybrid_attacks
+
+    if args.attack == "NoAttack" or args.attack not in data_poisoning_attacks + hybrid_attacks:
+        return client_indices
+
+    attack_model, source_label = _resolve_attack_params(args)
+
+    if attack_model == "targeted" and source_label is not None:
+        scores = []
+        for i, indices in enumerate(client_indices):
+            labels = train_dataset.targets[indices]
+            if isinstance(labels, torch.Tensor):
+                count = (labels == source_label).sum().item()
+            else:
+                count = int((np.array(labels) == source_label).sum())
+            scores.append((i, count))
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        if scores[0][1] == 0:
+            args.logger.warning(
+                f"No client has source_label={source_label}! "
+                "Backdoor attack will have no effect.")
+    else:
+        scores = [(i, len(indices)) for i, indices in enumerate(client_indices)]
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+    new_order = [s[0] for s in scores]
+    client_indices = [client_indices[i] for i in new_order]
+
+    for rank, (orig_id, score) in enumerate(scores[:args.num_adv]):
+        labels = train_dataset.targets[client_indices[rank]]
+        if isinstance(labels, torch.Tensor):
+            unique, counts = labels.unique(return_counts=True)
+            dist = dict(zip(unique.tolist(), counts.tolist()))
+        else:
+            unique, counts = np.unique(labels, return_counts=True)
+            dist = dict(zip(unique.tolist(), counts.tolist()))
+        args.logger.info(
+            f"Adversary slot {rank} <- original client {orig_id} "
+            f"(score={score}, class_dist={dist})")
+
+    return client_indices
 
 
 def dataset_class_indices(dataset, class_label=None):
